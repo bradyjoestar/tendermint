@@ -86,6 +86,12 @@ type Switch struct {
 	metrics *Metrics
 }
 
+// NetAddress returns the address the switch is listening on.
+func (sw *Switch) NetAddress() *NetAddress {
+	addr := sw.transport.NetAddress()
+	return &addr
+}
+
 // SwitchOption sets an optional parameter on the Switch.
 type SwitchOption func(*Switch)
 
@@ -234,21 +240,26 @@ func (sw *Switch) OnStop() {
 //
 // NOTE: Broadcast uses goroutines, so order of broadcast may not be preserved.
 func (sw *Switch) Broadcast(chID byte, msgBytes []byte) chan bool {
-	successChan := make(chan bool, len(sw.peers.List()))
 	sw.Logger.Debug("Broadcast", "channel", chID, "msgBytes", fmt.Sprintf("%X", msgBytes))
+
+	peers := sw.peers.List()
 	var wg sync.WaitGroup
-	for _, peer := range sw.peers.List() {
-		wg.Add(1)
-		go func(peer Peer) {
+	wg.Add(len(peers))
+	successChan := make(chan bool, len(peers))
+
+	for _, peer := range peers {
+		go func(p Peer) {
 			defer wg.Done()
-			success := peer.Send(chID, msgBytes)
+			success := p.Send(chID, msgBytes)
 			successChan <- success
 		}(peer)
 	}
+
 	go func() {
 		wg.Wait()
 		close(successChan)
 	}()
+
 	return successChan
 }
 
@@ -284,13 +295,7 @@ func (sw *Switch) StopPeerForError(peer Peer, reason interface{}) {
 	sw.stopAndRemovePeer(peer, reason)
 
 	if peer.IsPersistent() {
-		addr := peer.OriginalAddr()
-		if addr == nil {
-			// FIXME: persistent peers can't be inbound right now.
-			// self-reported address for inbound persistent peers
-			addr = peer.NodeInfo().NetAddress()
-		}
-		go sw.reconnectToPeer(addr)
+		go sw.reconnectToPeer(peer.SocketAddr())
 	}
 }
 
@@ -378,7 +383,7 @@ func (sw *Switch) SetAddrBook(addrBook AddrBook) {
 // like contributed to consensus.
 func (sw *Switch) MarkPeerAsGood(peer Peer) {
 	if sw.addrBook != nil {
-		sw.addrBook.MarkGood(peer.NodeInfo().NetAddress())
+		sw.addrBook.MarkGood(peer.SocketAddr())
 	}
 }
 
@@ -395,7 +400,7 @@ func (sw *Switch) DialPeersAsync(addrBook AddrBook, peers []string, persistent b
 		sw.Logger.Error("Error in peer's address", "err", err)
 	}
 
-	ourAddr := sw.nodeInfo.NetAddress()
+	ourAddr := sw.NetAddress()
 
 	// TODO: this code feels like it's in the wrong place.
 	// The integration tests depend on the addrBook being saved
@@ -497,7 +502,14 @@ func (sw *Switch) acceptRoutine() {
 				)
 
 				continue
-			case *ErrTransportClosed:
+			case ErrFilterTimeout:
+				sw.Logger.Error(
+					"Peer filter timed out",
+					"err", err,
+				)
+
+				continue
+			case ErrTransportClosed:
 				sw.Logger.Error(
 					"Stopped accept routine, as transport is closed",
 					"numPeers", sw.peers.Size(),
@@ -524,7 +536,7 @@ func (sw *Switch) acceptRoutine() {
 		if in >= sw.config.MaxNumInboundPeers {
 			sw.Logger.Info(
 				"Ignoring inbound connection: already have enough inbound peers",
-				"address", p.NodeInfo().NetAddress().String(),
+				"address", p.SocketAddr(),
 				"have", in,
 				"max", sw.config.MaxNumInboundPeers,
 			)
@@ -641,47 +653,40 @@ func (sw *Switch) addPeer(p Peer) error {
 		return err
 	}
 
-	p.SetLogger(sw.Logger.With("peer", p.NodeInfo().NetAddress()))
+	p.SetLogger(sw.Logger.With("peer", p.SocketAddr()))
 
 	// Handle the shut down case where the switch has stopped but we're
 	// concurrently trying to add a peer.
-	if sw.IsRunning() {
-		// All good. Start peer
-		if err := sw.startInitPeer(p); err != nil {
-			return err
-		}
-	} else {
+	if !sw.IsRunning() {
+		// XXX should this return an error or just log and terminate?
 		sw.Logger.Error("Won't start a peer - switch is not running", "peer", p)
+		return nil
 	}
 
-	// Add the peer to .peers.
-	// We start it first so that a peer in the list is safe to Stop.
-	// It should not err since we already checked peers.Has().
+	// Start the peer's send/recv routines.
+	// Must start it before adding it to the peer set
+	// to prevent Start and Stop from being called concurrently.
+	err := p.Start()
+	if err != nil {
+		// Should never happen
+		sw.Logger.Error("Error starting peer", "err", err, "peer", p)
+		return err
+	}
+
+	// Add the peer to PeerSet. Do this before starting the reactors
+	// so that if Receive errors, we will find the peer and remove it.
+	// Add should not err since we already checked peers.Has().
 	if err := sw.peers.Add(p); err != nil {
 		return err
 	}
-
-	sw.Logger.Info("Added peer", "peer", p)
 	sw.metrics.Peers.Add(float64(1))
 
-	return nil
-}
-
-func (sw *Switch) startInitPeer(p Peer) error {
-	err := p.Start() // spawn send/recv routines
-	if err != nil {
-		// Should never happen
-		sw.Logger.Error(
-			"Error starting peer",
-			"err", err,
-			"peer", p,
-		)
-		return err
-	}
-
+	// Start all the reactor protocols on the peer.
 	for _, reactor := range sw.reactors {
 		reactor.AddPeer(p)
 	}
+
+	sw.Logger.Info("Added peer", "peer", p)
 
 	return nil
 }
