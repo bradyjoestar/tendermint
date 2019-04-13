@@ -23,8 +23,8 @@ var (
 // and the software version to support upgrades to the format of
 // the State as stored on disk.
 type Version struct {
-	Consensus version.Consensus
-	Software  string
+	Consensus version.Consensus `json:"consensus"`
+	Software  string            `json:"software"`
 }
 
 // initStateVersion sets the Consensus.Block and Software versions,
@@ -49,38 +49,37 @@ var initStateVersion = Version{
 // Instead, use state.Copy() or state.NextState(...).
 // NOTE: not goroutine-safe.
 type State struct {
-	Version Version
+	Version Version `json:"version"`
 
 	// immutable
-	ChainID string
+	ChainID string `json:"chain_id"`
 
 	// LastBlockHeight=0 at genesis (ie. block(H=0) does not exist)
-	LastBlockHeight  int64
-	LastBlockTotalTx int64
-	LastBlockID      types.BlockID
-	LastBlockTime    time.Time
+	LastBlockHeight  int64         `json:"last_block_height"`
+	LastBlockTotalTx int64         `json:"last_block_totaltx"`
+	LastBlockID      types.BlockID `json:"last_block_id"`
+	LastBlockTime    time.Time     `json:"last_block_time"`
 
 	// LastValidators is used to validate block.LastCommit.
 	// Validators are persisted to the database separately every time they change,
 	// so we can query for historical validator sets.
 	// Note that if s.LastBlockHeight causes a valset change,
-	// we set s.LastHeightValidatorsChanged = s.LastBlockHeight + 1 + 1
-	// Extra +1 due to nextValSet delay.
-	NextValidators              *types.ValidatorSet
-	Validators                  *types.ValidatorSet
-	LastValidators              *types.ValidatorSet
-	LastHeightValidatorsChanged int64
+	// we set s.LastHeightValidatorsChanged = s.LastBlockHeight + 1
+	NextValidators              *types.ValidatorSet `json:"next_validators"`
+	Validators                  *types.ValidatorSet `json:"validators"`
+	LastValidators              *types.ValidatorSet `json:"last_validators"`
+	LastHeightValidatorsChanged int64               `json:"last_height_validators_changed"`
 
 	// Consensus parameters used for validating blocks.
 	// Changes returned by EndBlock and updated after Commit.
-	ConsensusParams                  types.ConsensusParams
-	LastHeightConsensusParamsChanged int64
+	ConsensusParams                  types.ConsensusParams `json:"consensus_params"`
+	LastHeightConsensusParamsChanged int64                 `json:"last_height_consensus_params_changed"`
 
 	// Merkle root of the results from executing prev block
-	LastResultsHash []byte
+	LastResultsHash []byte `json:"last_results_hash"`
 
 	// the latest AppHash we've received from calling abci.Commit()
-	AppHash []byte
+	AppHash []byte `json:"app_hash"`
 }
 
 // Copy makes a copy of the State for mutating.
