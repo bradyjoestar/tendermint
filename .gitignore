@@ -19,6 +19,7 @@ docs/dist
 abci-cli
 docs/node_modules/
 index.html.md
+Gopkg.lock
 
 scripts/wal2json/wal2json
 scripts/cutWALUntil/cutWALUntil
@@ -42,3 +43,4 @@ terraform.tfstate.backup
 terraform.tfstate.d
 
 .vscode
+

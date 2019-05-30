@@ -28,6 +28,7 @@ func AddNodeFlags(cmd *cobra.Command) {
 	// rpc flags
 	cmd.Flags().String("rpc.laddr", config.RPC.ListenAddress, "RPC listen address. Port required")
 	cmd.Flags().String("rpc.grpc_laddr", config.RPC.GRPCListenAddress, "GRPC listen address (BroadcastTx only). Port required")
+	cmd.Flags().String("p2p.external_address",config.P2P.ExternalAddress,"External address")
 	cmd.Flags().Bool("rpc.unsafe", config.RPC.Unsafe, "Enabled unsafe rpc methods")
 
 	// p2p flags
