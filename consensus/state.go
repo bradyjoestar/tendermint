@@ -525,8 +525,39 @@ func (cs *ConsensusState) updateToState(state sm.State) {
 		return
 	}
 
+	var selectLastValidators *types.ValidatorSet
+	var lastVals []*types.Validator
+
+	var selectValidators *types.ValidatorSet
+	var vals []*types.Validator
+
+	var validators *types.ValidatorSet
 	// Reset fields based on state.
-	validators := state.Validators
+	if cs.config.SelectStrategy && cs.config.SelectNumber <= len(state.Validators.Validators) {
+		state.InitValidators = state.Validators.Copy()
+		fmt.Println("cs.config.SelectNumber", cs.config.SelectNumber)
+		fmt.Println("length of state.validators", len(state.Validators.Validators))
+		fmt.Println("length of state.initvalidators", len(state.InitValidators.Validators))
+		fmt.Println("cs.Height", cs.Height)
+		for i := 0; i < cs.config.SelectNumber; i++ {
+			vals = append(vals, (*state.InitValidators.Validators[(int(cs.Height)+i+5)%cs.config.TotalPeers]).Copy())
+		}
+		selectValidators = types.NewValidatorSet(vals)
+		validators = selectValidators
+		if cs.Height != 0 {
+			for i := 0; i < cs.config.SelectNumber; i++ {
+				lastVals = append(lastVals, (*state.InitValidators.Validators[(int(cs.Height)-1+i+5)%cs.config.TotalPeers]).Copy())
+			}
+			selectLastValidators = types.NewValidatorSet(lastVals)
+			state.LastValidators = selectLastValidators
+		} else {
+			state.LastValidators = selectValidators
+		}
+
+	} else {
+		validators = state.Validators
+	}
+
 	lastPrecommits := (*types.VoteSet)(nil)
 	if cs.CommitRound > -1 && cs.Votes != nil {
 		if !cs.Votes.Precommits(cs.CommitRound).HasTwoThirdsMajority() {

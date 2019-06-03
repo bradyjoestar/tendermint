@@ -533,8 +533,6 @@ func (sw *Switch) acceptRoutine() {
 
 		// Ignore connection if we already have enough peers.
 		//_, _, _ := sw.NumPeers()
-		fmt.Println("alread have enouth inbound")
-		fmt.Println(sw.config.MaxNumInboundPeers)
 
 		if err := sw.addPeer(p); err != nil {
 			sw.transport.Cleanup(p)

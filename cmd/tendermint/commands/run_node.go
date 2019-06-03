@@ -28,13 +28,13 @@ func AddNodeFlags(cmd *cobra.Command) {
 	// rpc flags
 	cmd.Flags().String("rpc.laddr", config.RPC.ListenAddress, "RPC listen address. Port required")
 	cmd.Flags().String("rpc.grpc_laddr", config.RPC.GRPCListenAddress, "GRPC listen address (BroadcastTx only). Port required")
-	cmd.Flags().String("p2p.external_address",config.P2P.ExternalAddress,"External address")
+	cmd.Flags().String("p2p.external_address", config.P2P.ExternalAddress, "External address")
 	cmd.Flags().Bool("rpc.unsafe", config.RPC.Unsafe, "Enabled unsafe rpc methods")
 
 	// p2p flags
 	cmd.Flags().String("p2p.laddr", config.P2P.ListenAddress, "Node listen address. (0.0.0.0:0 means any interface, any port)")
-	cmd.Flags().Int("p2p.maxinoutpeers",config.P2P.MaxNumInboundPeers,"max inbound peers")
-	cmd.Flags().Int("p2p.maxoutpeers",config.P2P.MaxNumOutboundPeers,"max outbound peers")
+	cmd.Flags().Int("p2p.maxinoutpeers", config.P2P.MaxNumInboundPeers, "max inbound peers")
+	cmd.Flags().Int("p2p.maxoutpeers", config.P2P.MaxNumOutboundPeers, "max outbound peers")
 	cmd.Flags().String("p2p.seeds", config.P2P.Seeds, "Comma-delimited ID@host:port seed nodes")
 	cmd.Flags().String("p2p.persistent_peers", config.P2P.PersistentPeers, "Comma-delimited ID@host:port persistent peers")
 	cmd.Flags().Bool("p2p.upnp", config.P2P.UPNP, "Enable/disable UPNP port forwarding")
@@ -44,6 +44,9 @@ func AddNodeFlags(cmd *cobra.Command) {
 
 	// consensus flags
 	cmd.Flags().Bool("consensus.create_empty_blocks", config.Consensus.CreateEmptyBlocks, "Set this to false to only produce blocks when there are txs or when the AppHash changes")
+	cmd.Flags().Bool("consensus.select_strategy", config.Consensus.SelectStrategy, "Whether to select some peers")
+	cmd.Flags().Int("consensus.select_number", config.Consensus.SelectNumber, "number of peers selected")
+	cmd.Flags().Int("consensus.total_peers", config.Consensus.TotalPeers, "total peers")
 }
 
 // NewRunNodeCmd returns the command that allows the CLI to start a node.

@@ -663,6 +663,9 @@ type ConsensusConfig struct {
 
 	// Make progress as soon as we have all the precommits (as if TimeoutCommit = 0)
 	SkipTimeoutCommit bool `mapstructure:"skip_timeout_commit"`
+	SelectStrategy    bool `mapstructure:"select_strategy"`
+	SelectNumber      int  `mapstructure:"select_number"`
+	TotalPeers        int  `mapstructure:"total_peers"`
 
 	// EmptyBlocks mode and possible interval between empty blocks
 	CreateEmptyBlocks         bool          `mapstructure:"create_empty_blocks"`
@@ -685,6 +688,8 @@ func DefaultConsensusConfig() *ConsensusConfig {
 		TimeoutPrecommitDelta:       500 * time.Millisecond,
 		TimeoutCommit:               1000 * time.Millisecond,
 		SkipTimeoutCommit:           false,
+		SelectStrategy:              false,
+		SelectNumber:                0,
 		CreateEmptyBlocks:           true,
 		CreateEmptyBlocksInterval:   0 * time.Second,
 		PeerGossipSleepDuration:     100 * time.Millisecond,
